@@ -10,7 +10,7 @@ https://github.com/asbiin/laravel-webauthn
 
 This adapter offers a seamless integration of both front-end and back-end components. 
 
-Our library, in contrast, focuses on providing a streamlined back-end solution.
+In contrast, this library provides only a simple authentication Facade.
 
 ## Included Features
 
