@@ -2,7 +2,9 @@
 
 namespace Faiare\LaravelWebAuthn\Entities;
 
-readonly class PrepareAuthenticatePublicKey
+use JsonSerializable;
+
+readonly class PrepareAuthenticatePublicKey implements JsonSerializable
 {
     public function __construct(
         public array  $challenge,
@@ -12,5 +14,16 @@ readonly class PrepareAuthenticatePublicKey
         public string $rpId
     )
     {
+    }
+
+    public function jsonSerialize(): mixed
+    {
+        return [
+            'challenge' => $this->challenge,
+            'timeout' => $this->timeout,
+            'userVerification' => $this->userVerification,
+            'extensions' => $this->extensions,
+            'rpId' => $this->rpId,
+        ];
     }
 }
