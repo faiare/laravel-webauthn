@@ -13,8 +13,8 @@ class WebAuthnServiceProvider extends ServiceProvider
             __DIR__ . '/../config/webauthn.php', 'webauthn'
         );
 
-        $this->app->bind('webauthn', function ($app) {
-            return new WebAuthnHelper($app['config']['webauthn']);
+        $this->app->bind('webauthn', function ($app): WebAuthn {
+            return new WebAuthnHelper($app['config']['webauthn']['appId']);
         });
     }
 
