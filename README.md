@@ -35,11 +35,18 @@ Frontend example is in the examples directory.
 
 ```php
 use Faiare\LaravelWebAuthn\Facades\WebAuthn;
+use Illuminate\Support\Facades\DB;
 
 // info must be a string
 $info = request()->input('credential');
 
-WebAuthn::register($info);
+$publicKey = WebAuthn::register($info);
+
+// store the public key, example...
+DB::table('web_authn_keys')->insert([
+    'webauthn_id' => $publicKey->webauthnId,
+    'webauthn_key' => $publicKey->webauthnKey,
+]);
 ```
 
 ### Authenticate Passkey
@@ -63,5 +70,5 @@ $webAuthnId = WebAuthn::parseWebAuthnId($info);
 // table must have a column named webauthn_id, webauthn_key
 $webAuthnKey = DB::table('web_authn_keys')->where('webauthn_id', $webAuthnId)->first();
 
-WebAuthn::authenticate($info, $webAuthnKey);
+$success = WebAuthn::authenticate($info, $webAuthnKey);
 ```
