@@ -105,7 +105,6 @@ class WebAuthnHelper implements WebAuthn
         $result->authenticatorSelection->requireResidentKey = false;
         $result->authenticatorSelection->userVerification = 'discouraged';
 
-        $result->attestation = null;
         $result->timeout = 60000;
         $result->excludeCredentials = []; // No excludeList
         $result->extensions = (object)[];
