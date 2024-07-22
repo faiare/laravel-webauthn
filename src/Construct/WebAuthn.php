@@ -3,7 +3,7 @@
 namespace Faiare\LaravelWebAuthn\Construct;
 
 use Faiare\LaravelWebAuthn\Entities\PrepareChallengeForRegistration;
-use Faiare\LaravelWebAuthn\Entities\PrepareLoginPublicKey;
+use Faiare\LaravelWebAuthn\Entities\PrepareAuthenticatePublicKey;
 use Faiare\LaravelWebAuthn\Entities\RegisterPublicKey;
 
 interface WebAuthn
@@ -16,7 +16,7 @@ interface WebAuthn
 
     public function register(string $info): RegisterPublicKey;
 
-    public function prepareForAuthenticate(): PrepareLoginPublicKey;
+    public function prepareForAuthenticate(): PrepareAuthenticatePublicKey;
 
     public function authenticate(string $info, mixed $userwebauthn): bool;
 

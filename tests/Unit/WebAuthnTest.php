@@ -3,6 +3,7 @@
 namespace Faiare\LaravelWebAuthn\Tests\Unit;
 
 use Faiare\LaravelWebAuthn\Entities\PrepareChallengeForRegistration;
+use Faiare\LaravelWebAuthn\Entities\PrepareAuthenticatePublicKey;
 use Faiare\LaravelWebAuthn\Entities\RegisterPublicKey;
 use Faiare\LaravelWebAuthn\Facades\WebAuthn;
 use Faiare\LaravelWebAuthn\Tests\TestCase;
@@ -33,8 +34,10 @@ class WebAuthnTest extends TestCase
         $this->assertArrayHasKey('b64challenge', $result->jsonSerialize());
     }
 
-    public function test_register()
+    public function test_prepare_for_authentication()
     {
-        // TODO: Implement test_register() method.
+        $result = WebAuthn::prepareForAuthenticate();
+
+        $this->assertInstanceOf(PrepareAuthenticatePublicKey::class, $result);
     }
 }

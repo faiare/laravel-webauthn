@@ -2,7 +2,7 @@
 
 namespace Faiare\LaravelWebAuthn\Entities;
 
-readonly class PrepareLoginPublicKey
+readonly class PrepareAuthenticatePublicKey
 {
     public function __construct(
         public array  $challenge,

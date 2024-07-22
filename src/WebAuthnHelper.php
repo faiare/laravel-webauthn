@@ -7,7 +7,7 @@ use Exception;
 use Faiare\LaravelWebAuthn\Construct\WebAuthn;
 use Faiare\LaravelWebAuthn\Entities\Extensions;
 use Faiare\LaravelWebAuthn\Entities\PrepareChallengeForRegistration;
-use Faiare\LaravelWebAuthn\Entities\PrepareLoginPublicKey;
+use Faiare\LaravelWebAuthn\Entities\PrepareAuthenticatePublicKey;
 use Faiare\LaravelWebAuthn\Entities\RegisterPublicKey;
 use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Math\BigInteger;
@@ -218,16 +218,16 @@ class WebAuthnHelper implements WebAuthn
      * You should store the revised userwebauthn back to your database after calling this function
      * (to avoid replay attacks)
      *
-     * @return PrepareLoginPublicKey to pass to javascript webauthnAuthenticate
+     * @return PrepareAuthenticatePublicKey to pass to javascript webauthnAuthenticate
      *
      * @throws RandomException
      */
-    public function prepareForAuthenticate(): PrepareLoginPublicKey
+    public function prepareForAuthenticate(): PrepareAuthenticatePublicKey
     {
         $challengebytes = self::randomBytes(16);
 
         /* generate key request */
-        return new PrepareLoginPublicKey(
+        return new PrepareAuthenticatePublicKey(
             challenge: self::stringToArray($challengebytes),
             timeout: 60000,
             userVerification: 'discouraged',
