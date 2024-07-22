@@ -36,7 +36,7 @@ jobs:
           command: composer require "laravel/framework=^${{ matrix.laravel }}" --no-interaction --no-update
 
       - name: Install dependencies
-        uses: nick-invision/retry@v1
+        uses: nick-invision/retry@v3
         with:
           timeout_minutes: 5
           max_attempts: 5
