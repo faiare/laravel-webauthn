@@ -5,6 +5,10 @@ namespace Faiare\LaravelWebAuthn;
 use CBOR\CBOREncoder;
 use Exception;
 use Faiare\LaravelWebAuthn\Construct\WebAuthn;
+use Faiare\LaravelWebAuthn\Entities\Extensions;
+use Faiare\LaravelWebAuthn\Entities\PrepareChallengeForRegistration;
+use Faiare\LaravelWebAuthn\Entities\PrepareLoginPublicKey;
+use Faiare\LaravelWebAuthn\Entities\RegisterPublicKey;
 use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Math\BigInteger;
 use Random\RandomException;
@@ -44,7 +48,7 @@ class WebAuthnHelper implements WebAuthn
     /**
      * construct object on which to operate
      *
-     * @param  string  $appid  a string identifying your app, typically the domain of your website which people
+     * @param string $appid a string identifying your app, typically the domain of your website which people
      *                         are using the key to log in to. If you have the URL (ie including the
      *                         https:// on the front) to hand, give that;
      *                         if it's not https, well what are you doing using this code?
@@ -58,16 +62,6 @@ class WebAuthnHelper implements WebAuthn
     }
 
     /**
-     * cancel all keys for a user
-     *
-     * @return string to store as the user's webauthn field in your database
-     */
-    public function cancel(): string
-    {
-        return '';
-    }
-
-    /**
      * generate a challenge ready for registering a hardware key, fingerprint or whatever:
      *
      * @param  $username  string by which the user is known potentially displayed on the hardware key
@@ -76,20 +70,20 @@ class WebAuthnHelper implements WebAuthn
      * @param  $crossPlatform  bool default=FALSE, whether to link the identity to the key (TRUE, so it
      *                        can be used cross-platofrm, on different computers) or the platform (FALSE, only on
      *                        this computer, but with any available authentication device, e.g. known to Windows Hello)
-     * @return array pass this JSON string back to the browser
+     * @return PrepareChallengeForRegistration pass this JSON string back to the browser
      *
      * @throws RandomException
      */
-    public function prepareChallengeForRegistration(string $username, string $userid, bool $crossPlatform = false): array
+    public function prepareChallengeForRegistration(string $username, string $userid, bool $crossPlatform = false): PrepareChallengeForRegistration
     {
-        $result = (object) [];
+        $result = (object)[];
         $rbchallenge = self::randomBytes(16);
         $result->challenge = self::stringToArray($rbchallenge);
-        $result->user = (object) [];
+        $result->user = (object)[];
         $result->user->name = $result->user->displayName = $username;
         $result->user->id = self::stringToArray($userid);
 
-        $result->rp = (object) [];
+        $result->rp = (object)[];
         $result->rp->name = $result->rp->id = $this->appid;
 
         $result->pubKeyCredParams = [
@@ -103,7 +97,7 @@ class WebAuthnHelper implements WebAuthn
             ],
         ];
 
-        $result->authenticatorSelection = (object) [];
+        $result->authenticatorSelection = (object)[];
         if ($crossPlatform) {
             $result->authenticatorSelection->authenticatorAttachment = 'cross-platform';
         }
@@ -114,26 +108,26 @@ class WebAuthnHelper implements WebAuthn
         $result->attestation = null;
         $result->timeout = 60000;
         $result->excludeCredentials = []; // No excludeList
-        $result->extensions = (object) [];
+        $result->extensions = (object)[];
         $result->extensions->exts = true;
 
-        return [
-            'publicKey' => $result,
-            'b64challenge' => rtrim(strtr(base64_encode($rbchallenge), '+/', '-_'), '='),
-        ];
+        return new PrepareChallengeForRegistration(
+            publicKey: $result,
+            b64challenge: rtrim(strtr(base64_encode($rbchallenge), '+/', '-_'), '='),
+        );
     }
 
     /**
      * registers a new key for a user
      * requires info from the hardware via javascript given below
      *
-     * @param  string  $info  supplied to the PHP script via a POST, constructed by the Javascript given below, ultimately
+     * @param string $info supplied to the PHP script via a POST, constructed by the Javascript given below, ultimately
      *                        provided by the key
-     * @return object modified to store in the user's webauthn field in your database
+     * @return RegisterPublicKey modified to store in the user's webauthn field in your database
      *
      * @throws Exception
      */
-    public function register(string $info): object
+    public function register(string $info): RegisterPublicKey
     {
         $info = json_decode($info);
         if (empty($info)) {
@@ -150,7 +144,7 @@ class WebAuthnHelper implements WebAuthn
         attestation object received from the key */
 
         $aos = self::arrayToString($info->response->attestationObject);
-        $ao = (object) (CBOREncoder::decode($aos));
+        $ao = (object)(CBOREncoder::decode($aos));
         if (empty($ao)) {
             $this->oops('cannot decode key response (1)');
         }
@@ -178,11 +172,11 @@ class WebAuthnHelper implements WebAuthn
             $this->oops('cannot decode key response (5)');
         }
 
-        if (! ($ao->flags & 0x41)) {
+        if (!($ao->flags & 0x41)) {
             $this->oops('cannot decode key response (6)');
         } /* TUP and AT must be set */
 
-        $ao->attData = (object) [];
+        $ao->attData = (object)[];
         $ao->attData->aaguid = substr($bs, 37, 16);
         $ao->attData->credIdLen = (ord($bs[53]) << 8) + ord($bs[54]);
         $ao->attData->credId = substr($bs, 55, $ao->attData->credIdLen);
@@ -212,11 +206,10 @@ class WebAuthnHelper implements WebAuthn
             $this->oops('cannot decode key response (16)');
         }
 
-        $publicKey = (object) [];
-        $publicKey->key = $ao->attData->keyBytes;
-        $publicKey->id = bin2hex(self::arrayToString($info->rawId));
-
-        return $publicKey;
+        return new RegisterPublicKey(
+            key: $ao->attData->keyBytes,
+            id: bin2hex(self::arrayToString($info->rawId)),
+        );
     }
 
     /**
@@ -225,24 +218,24 @@ class WebAuthnHelper implements WebAuthn
      * You should store the revised userwebauthn back to your database after calling this function
      * (to avoid replay attacks)
      *
-     * @return object to pass to javascript webauthnAuthenticate
+     * @return PrepareLoginPublicKey to pass to javascript webauthnAuthenticate
      *
-     * @throws Exception
+     * @throws RandomException
      */
-    public function prepareForLogin(): object
+    public function prepareForAuthenticate(): PrepareLoginPublicKey
     {
         $challengebytes = self::randomBytes(16);
 
         /* generate key request */
-        $publickey = (object) [];
-        $publickey->challenge = self::stringToArray($challengebytes);
-        $publickey->timeout = 60000;
-        $publickey->userVerification = 'discouraged';
-        $publickey->extensions = (object) [];
-        $publickey->extensions->txAuthSimple = 'Execute order 66';
-        $publickey->rpId = str_replace('https://', '', $this->appid);
-
-        return $publickey;
+        return new PrepareLoginPublicKey(
+            challenge: self::stringToArray($challengebytes),
+            timeout: 60000,
+            userVerification: 'discouraged',
+            extensions: new Extensions(
+                txAuthSimple: 'Execute order 66',
+            ),
+            rpId: str_replace('https://', '', $this->appid),
+        );
     }
 
     /**
@@ -251,9 +244,9 @@ class WebAuthnHelper implements WebAuthn
      * You should store the revised userwebauthn back to your database after calling this function
      * (to avoid replay attacks)
      *
-     * @param  string  $info  supplied to the PHP script via a POST, constructed by the Javascript given below, ultimately
+     * @param string $info supplied to the PHP script via a POST, constructed by the Javascript given below, ultimately
      *                        provided by the key
-     * @param  mixed  $userwebauthn  the exisiting webauthn field for the user from your
+     * @param mixed $userwebauthn the exisiting webauthn field for the user from your
      *                               database (it's actaully a JSON string, but that's entirely internal to
      *                               this code)
      * @return bool true for valid authentication or false for failed validation
@@ -274,7 +267,7 @@ class WebAuthnHelper implements WebAuthn
             $key = $userwebauthn;
         }
         if (empty($key)) {
-            $this->oops('no key with id '.implode(',', $info->rawId));
+            $this->oops('no key with id ' . implode(',', $info->rawId));
         }
 
         /* cross-check challenge */
@@ -302,7 +295,7 @@ class WebAuthnHelper implements WebAuthn
         }
 
         $bs = self::arrayToString($info->response->authenticatorData);
-        $ao = (object) [];
+        $ao = (object)[];
 
         $ao->rpIdHash = substr($bs, 0, 32);
         $ao->flags = ord(substr($bs, 32, 1));
@@ -323,7 +316,7 @@ class WebAuthnHelper implements WebAuthn
 
         /* assemble signed data */
         $clientdata = self::arrayToString($info->response->clientDataJSONarray);
-        $signeddata = $hashId.chr($ao->flags).$ao->counter.hash('sha256', $clientdata, true);
+        $signeddata = $hashId . chr($ao->flags) . $ao->counter . hash('sha256', $clientdata, true);
 
         if (count($info->response->signature) < 70) {
             $this->oops('cannot decode key response (3)');
@@ -338,17 +331,24 @@ class WebAuthnHelper implements WebAuthn
         return match (@openssl_verify($signeddata, $signature, $key, OPENSSL_ALGO_SHA256)) {
             1 => true,
             0 => false,
-            default => $this->oops('cannot decode key response (4) '.openssl_error_string()),
+            default => $this->oops('cannot decode key response (4) ' . openssl_error_string()),
         };
+    }
+
+    public function parseWebAuthnId(string $info): string
+    {
+        $dInfo = json_decode($info);
+        $rawId = $dInfo->rawId;
+        return bin2hex(self::arrayToString($rawId));
     }
 
     /**
      * convert an array of uint8's to a binary string
      *
-     * @param  array  $a  to be converted (array of unsigned 8 bit integers)
+     * @param array $a to be converted (array of unsigned 8 bit integers)
      * @return string converted to bytes
      */
-    public static function arrayToString(array $a): string
+    protected static function arrayToString(array $a): string
     {
         $s = '';
         foreach ($a as $c) {
@@ -361,7 +361,7 @@ class WebAuthnHelper implements WebAuthn
     /**
      * convert a binary string to an array of uint8's
      *
-     * @param  int|string  $s  to be converted
+     * @param int|string $s to be converted
      * @return array converted to array of unsigned integers
      */
     private static function stringToArray(int|string $s): array
@@ -369,7 +369,7 @@ class WebAuthnHelper implements WebAuthn
         /* convert binary string to array of uint8 */
         $a = [];
         for ($idx = 0; $idx < strlen($s); $idx++) {
-            $a[] = ord(((string) $s)[$idx]);
+            $a[] = ord(((string)$s)[$idx]);
         }
 
         return $a;
@@ -378,7 +378,7 @@ class WebAuthnHelper implements WebAuthn
     /**
      * convert a public key from the hardware to PEM format
      *
-     * @param  string  $key  to be converted to PEM format
+     * @param string $key to be converted to PEM format
      * @return string|null converted to PEM format
      */
     private function pubkeyToPem(string $key): ?string
@@ -399,7 +399,7 @@ class WebAuthnHelper implements WebAuthn
         */
         $der = "\x30\x59\x30\x13\x06\x07\x2a\x86\x48\xce\x3d\x02\x01";
         $der .= "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07\x03\x42";
-        $der .= "\x00".$key;
+        $der .= "\x00" . $key;
         $pem = "-----BEGIN PUBLIC KEY-----\x0A";
         $pem .= chunk_split(base64_encode($der), 64, "\x0A");
         $pem .= "-----END PUBLIC KEY-----\x0A";
@@ -410,7 +410,7 @@ class WebAuthnHelper implements WebAuthn
     /**
      * Convert COSE ECDHA to PKCS
      *
-     * @param  string  $binary  binary string to be converted
+     * @param string $binary binary string to be converted
      * @return string|null converted public key
      *
      * @throws Exception
@@ -419,18 +419,18 @@ class WebAuthnHelper implements WebAuthn
     {
         $cosePubKey = CBOREncoder::decode($binary);
 
-        if (! isset($cosePubKey[3] /* cose_alg */)) {
+        if (!isset($cosePubKey[3] /* cose_alg */)) {
             return null;
         }
 
         switch ($cosePubKey[3]) {
             case self::ES256:
                 /* COSE Alg: ECDSA w/ SHA-256 */
-                if (! isset($cosePubKey[-1] /* cose_crv */)) {
+                if (!isset($cosePubKey[-1] /* cose_crv */)) {
                     $this->oops('cannot decode key response (9)');
                 }
 
-                if (! isset($cosePubKey[-2] /* cose_crv_x */)) {
+                if (!isset($cosePubKey[-2] /* cose_crv_x */)) {
                     $this->oops('cannot decode key response (10)');
                 }
 
@@ -438,19 +438,19 @@ class WebAuthnHelper implements WebAuthn
                     $this->oops('cannot decode key response (14)');
                 }
 
-                if (! isset($cosePubKey[-2] /* cose_crv_x */)) {
+                if (!isset($cosePubKey[-2] /* cose_crv_x */)) {
                     $this->oops('x coordinate for curve missing');
                 }
 
-                if (! isset($cosePubKey[1] /* cose_kty */)) {
+                if (!isset($cosePubKey[1] /* cose_kty */)) {
                     $this->oops('cannot decode key response (7)');
                 }
 
-                if (! isset($cosePubKey[-3] /* cose_crv_y */)) {
+                if (!isset($cosePubKey[-3] /* cose_crv_y */)) {
                     $this->oops('cannot decode key response (11)');
                 }
 
-                if (! isset($cosePubKey[-3] /* cose_crv_y */)) {
+                if (!isset($cosePubKey[-3] /* cose_crv_y */)) {
                     $this->oops('y coordinate for curve missing');
                 }
 
@@ -465,19 +465,19 @@ class WebAuthnHelper implements WebAuthn
                 }
                 $tag = "\x04";
 
-                return $this->pubkeyToPem($tag.$x.$y);
+                return $this->pubkeyToPem($tag . $x . $y);
             case self::RS256:
                 /* COSE Alg: RSASSA-PKCS1-v1_5 w/ SHA-256 */
-                if (! isset($cosePubKey[-2])) {
+                if (!isset($cosePubKey[-2])) {
                     $this->oops('RSA Exponent missing');
                 }
-                if (! isset($cosePubKey[-1])) {
+                if (!isset($cosePubKey[-1])) {
                     $this->oops('RSA Modulus missing');
                 }
                 $e = new BigInteger(bin2hex($cosePubKey[-2]->get_byte_string()), 16);
                 $n = new BigInteger(bin2hex($cosePubKey[-1]->get_byte_string()), 16);
 
-                return (string) PublicKeyLoader::load(compact('e', 'n'));
+                return (string)PublicKeyLoader::load(compact('e', 'n'));
             default:
                 $this->oops('cannot decode key response (13)');
         }
@@ -486,7 +486,7 @@ class WebAuthnHelper implements WebAuthn
     /**
      * shim for random_bytes which doesn't exist pre php7
      *
-     * @param  int  $length  the number of bytes required
+     * @param int $length the number of bytes required
      * @return string length cryptographically random bytes
      *
      * @throws RandomException
@@ -497,7 +497,7 @@ class WebAuthnHelper implements WebAuthn
             return random_bytes($length);
         } elseif (function_exists('openssl_random_pseudo_bytes')) {
             $bytes = openssl_random_pseudo_bytes($length, $crypto_strong);
-            if (! $crypto_strong) {
+            if (!$crypto_strong) {
                 throw new RuntimeException('openssl_random_pseudo_bytes did not return a cryptographically strong result', 1);
             }
 
@@ -510,8 +510,8 @@ class WebAuthnHelper implements WebAuthn
     /**
      * just an abbreviation to throw an error: never returns
      *
-     * @param  string  $s  error message
-     * @param  int  $c  error code (0 for user error, 1 for incorrect usage)
+     * @param string $s error message
+     * @param int $c error code (0 for user error, 1 for incorrect usage)
      */
     private function oops(string $s, int $c = 0): never
     {
@@ -519,5 +519,7 @@ class WebAuthnHelper implements WebAuthn
         throw new RuntimeException($s, $c);
     }
 
-    protected function getUrlSuffix() {}
+    protected function getUrlSuffix()
+    {
+    }
 }

@@ -2,19 +2,23 @@
 
 namespace Faiare\LaravelWebAuthn\Construct;
 
+use Faiare\LaravelWebAuthn\Entities\PrepareChallengeForRegistration;
+use Faiare\LaravelWebAuthn\Entities\PrepareLoginPublicKey;
+use Faiare\LaravelWebAuthn\Entities\RegisterPublicKey;
+
 interface WebAuthn
 {
     public function __construct(string $appid);
 
-    public function cancel(): string;
+    public function prepareChallengeForRegistration(
+        string $username, string $userid, bool $crossPlatform
+    ): PrepareChallengeForRegistration;
 
-    public function register(string $info): object;
+    public function register(string $info): RegisterPublicKey;
 
-    public function prepareForLogin(): object;
-
-    public function prepareChallengeForRegistration(string $username, string $userid, bool $crossPlatform): array;
+    public function prepareForAuthenticate(): PrepareLoginPublicKey;
 
     public function authenticate(string $info, mixed $userwebauthn): bool;
 
-    public static function arrayToString(array $a): string;
+    public function parseWebAuthnId(string $info): string;
 }
