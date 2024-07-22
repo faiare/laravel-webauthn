@@ -1,0 +1,44 @@
+{
+  "name": "faiare/laravel-webauthn",
+  "description": "A WebAuthn library for Laravel",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "faiare",
+      "homepage": "https://github.com/faiare"
+    }
+  ],
+  "require": {
+    "php": "^8.2|^8.3",
+    "ext-openssl": "*",
+    "phpseclib/phpseclib": "^3.0",
+    "2tvenom/cborencode": "^1.0.2",
+    "illuminate/support": "^10.0|^11.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^9.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Faiare\\LaravelWebAuthn\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Faiare\\LaravelWebAuthn\\Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Faiare\\LaravelWebAuthn\\WebAuthnServiceProvider"
+      ],
+      "aliases": {
+        "WebAuthn": "Faiare\\LaravelWebAuthn\\Facades\\WebAuthn"
+      }
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}
