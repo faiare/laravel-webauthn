@@ -1,9 +1,24 @@
 # Laravel WebAuthn
 
-This project is a work in progress.
+This project is currently under development.
 
-The following repository is heavily referenced:
+It references the following repository extensively:
 https://github.com/davidearl/webauthn
+
+For a comprehensive solution, consider using the well-established adapter available at:
+https://github.com/asbiin/laravel-webauthn
+
+This adapter offers a seamless integration of both front-end and back-end components. 
+
+Our library, in contrast, focuses on providing a streamlined back-end solution.
+
+## Included Features
+
+- Back-end Registration [x]
+- Back-end Authentication [x]
+- Front-end Registration []
+- Front-end Authentication []
+- Store WebAuthn keys in database []
 
 ## Requirements
 
