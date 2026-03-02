@@ -14,11 +14,10 @@
     "ext-openssl": "*",
     "phpseclib/phpseclib": "^3.0",
     "2tvenom/cborencode": "^1.0.2",
-    "illuminate/support": "^10.0|^11.0|^12.0",
-    "laravel/framework": "^10"
+    "illuminate/support": "^10.0|^11.0|^12.0"
   },
   "require-dev": {
-    "orchestra/testbench": "^8.0|^9.0|^10.0",
+    "orchestra/testbench": "^8.0|^9.1.4|^10.0",
     "phpunit/phpunit": "^9.0|^10.0|^11.0"
   },
   "autoload": {
