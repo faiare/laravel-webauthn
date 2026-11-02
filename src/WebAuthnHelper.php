@@ -3,14 +3,13 @@
 namespace Faiare\LaravelWebAuthn;
 
 use CBOR\CBOREncoder;
+use CBOR\Types\CBORByteString;
 use Exception;
 use Faiare\LaravelWebAuthn\Construct\WebAuthn;
 use Faiare\LaravelWebAuthn\Entities\Extensions;
 use Faiare\LaravelWebAuthn\Entities\PrepareChallengeForRegistration;
 use Faiare\LaravelWebAuthn\Entities\PrepareAuthenticatePublicKey;
 use Faiare\LaravelWebAuthn\Entities\RegisterPublicKey;
-use phpseclib3\Crypt\PublicKeyLoader;
-use phpseclib3\Math\BigInteger;
 use Random\RandomException;
 use RuntimeException;
 
@@ -407,6 +406,76 @@ class WebAuthnHelper implements WebAuthn
     }
 
     /**
+     * Build a PEM encoded RSA public key (SubjectPublicKeyInfo, RFC 8017 / RFC 5280) from its components
+     *
+     *  SEQUENCE                                         30 ..
+     *   SEQUENCE                                        30 0d
+     *    OID 1.2.840.113549.1.1.1 (rsaEncryption)       06 09 2a 86 48 86 f7 0d 01 01 01
+     *    NULL                                           05 00
+     *   BIT STRING                                      03 .. 00
+     *    SEQUENCE (RSAPublicKey)                        30 ..
+     *     INTEGER modulus                               02 .. n
+     *     INTEGER publicExponent                        02 .. e
+     *
+     * @param string $n modulus as big-endian unsigned bytes
+     * @param string $e public exponent as big-endian unsigned bytes
+     * @return string PEM encoded public key
+     */
+    private function rsaPubkeyToPem(string $n, string $e): string
+    {
+        $n = ltrim($n, "\x00");
+        $e = ltrim($e, "\x00");
+        if ($n === '' || $e === '') {
+            $this->oops('cannot decode key response (18)');
+        }
+
+        $rsaPublicKey = self::derEncode("\x30", self::derUnsignedInteger($n) . self::derUnsignedInteger($e));
+        $algorithm = "\x30\x0d\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x01\x01\x05\x00";
+        $der = self::derEncode("\x30", $algorithm . self::derEncode("\x03", "\x00" . $rsaPublicKey));
+
+        $pem = "-----BEGIN PUBLIC KEY-----\x0A";
+        $pem .= chunk_split(base64_encode($der), 64, "\x0A");
+        $pem .= "-----END PUBLIC KEY-----\x0A";
+
+        return $pem;
+    }
+
+    /**
+     * DER encode a non-negative INTEGER from big-endian unsigned bytes without leading zero bytes
+     *
+     * @param string $bytes big-endian unsigned bytes
+     * @return string DER encoded INTEGER
+     */
+    private static function derUnsignedInteger(string $bytes): string
+    {
+        /* a set high bit would make the value negative in two's complement, so pad it */
+        if (ord($bytes[0]) & 0x80) {
+            $bytes = "\x00" . $bytes;
+        }
+
+        return self::derEncode("\x02", $bytes);
+    }
+
+    /**
+     * DER encode a value as tag, definite length and contents
+     *
+     * @param string $tag single byte tag
+     * @param string $value contents
+     * @return string DER encoded value
+     */
+    private static function derEncode(string $tag, string $value): string
+    {
+        $length = strlen($value);
+        if ($length < 0x80) {
+            return $tag . chr($length) . $value;
+        }
+
+        $lengthBytes = ltrim(pack('N', $length), "\x00");
+
+        return $tag . chr(0x80 | strlen($lengthBytes)) . $lengthBytes . $value;
+    }
+
+    /**
      * Convert COSE ECDHA to PKCS
      *
      * @param string $binary binary string to be converted
@@ -473,10 +542,14 @@ class WebAuthnHelper implements WebAuthn
                 if (!isset($cosePubKey[-1])) {
                     $this->oops('RSA Modulus missing');
                 }
-                $e = new BigInteger(bin2hex($cosePubKey[-2]->get_byte_string()), 16);
-                $n = new BigInteger(bin2hex($cosePubKey[-1]->get_byte_string()), 16);
+                if (!$cosePubKey[-1] instanceof CBORByteString || !$cosePubKey[-2] instanceof CBORByteString) {
+                    $this->oops('cannot decode key response (17)');
+                }
 
-                return (string)PublicKeyLoader::load(compact('e', 'n'));
+                return $this->rsaPubkeyToPem(
+                    $cosePubKey[-1]->get_byte_string(),
+                    $cosePubKey[-2]->get_byte_string(),
+                );
             default:
                 $this->oops('cannot decode key response (13)');
         }
