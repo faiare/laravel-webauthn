@@ -19,7 +19,7 @@ linter / フォーマッタの設定はない。`phpunit.xml.dist` に `failOnNo
 
 ## サポートするバージョン（CI）
 
-`.github/workflows/test.yml` は PHP 8.2–8.5 × Laravel 10/11/12 × `prefer-lowest`/`prefer-stable` のマトリクスで実行する。CI は `laravel/framework=^N` を require してから `composer update --prefer-lowest|--prefer-stable` を行うので、`composer.json` の制約は下限まで実際に動く必要がある（例: Laravel 11 の prefer-lowest を通すために `orchestra/testbench` の下限を `^9.1.4` にしている）。Laravel / PHP のサポートを追加するときは、`composer.json` の `require`（`illuminate/support`, `php`）、`require-dev`（`orchestra/testbench`, `phpunit/phpunit`）と CI のマトリクスを合わせて更新する。
+`.github/workflows/test.yml` は PHP 8.3–8.5 × Laravel 12/13 × `prefer-lowest`/`prefer-stable` のマトリクスで実行する。CI は `laravel/framework=^N` を require してから `composer update --prefer-lowest|--prefer-stable` を行うので、`composer.json` の制約は下限まで実際に動く必要がある（例: `phpunit/phpunit` の下限を `^11.5.50|^12.5.8` にしているのは、それ未満がセキュリティ勧告の対象で解決できないため）。Composer 2.9 以降はセキュリティ勧告の対象バージョンを依存解決から除外するので、サポートが終了して未修正の勧告が残る Laravel のメジャーバージョンはインストールできなくなる。Laravel 10/11 はこの理由でサポートを外した。Laravel / PHP のサポートを追加するときは、`composer.json` の `require`（`illuminate/support`, `php`）、`require-dev`（`orchestra/testbench`, `phpunit/phpunit`）と CI のマトリクスを合わせて更新する。
 
 ## アーキテクチャ
 
