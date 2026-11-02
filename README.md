@@ -59,8 +59,8 @@ $publicKey = WebAuthn::register($info);
 
 // store the public key, example...
 DB::table('web_authn_keys')->insert([
-    'webauthn_id' => $publicKey->webauthnId,
-    'webauthn_key' => $publicKey->webauthnKey,
+    'webauthn_id' => $publicKey->id,
+    'webauthn_key' => $publicKey->key,
 ]);
 ```
 
