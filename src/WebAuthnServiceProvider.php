@@ -14,7 +14,10 @@ class WebAuthnServiceProvider extends ServiceProvider
         );
 
         $this->app->bind('webauthn', function ($app): WebAuthn {
-            return new WebAuthnHelper($app['config']['webauthn']['appId']);
+            return new WebAuthnHelper(
+                $app['config']['webauthn']['appId'],
+                $app['config']['webauthn']['userVerification'] ?? WebAuthnHelper::USER_VERIFICATION_DISCOURAGED,
+            );
         });
     }
 

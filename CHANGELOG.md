@@ -8,6 +8,15 @@ While the version is below 1.0.0, a minor version bump may contain breaking chan
 
 ## [Unreleased]
 
+### Added
+
+- `userVerification` config option (`WEB_AUTHN_USER_VERIFICATION`): `required`, `preferred` or `discouraged`
+  (default, the previous fixed value). It is sent to the browser on both registration and authentication.
+  With `required`, `register()` and `authenticate()` also reject responses whose authenticator data does not
+  have the user verified (UV) flag set. `WebAuthnHelper::__construct()` takes it as an optional second
+  argument and throws for any other value. If you published `config/webauthn.php`, add the key to it or
+  rely on the default.
+
 ### Breaking changes
 
 - `register()` now requires the challenge issued for the registration:

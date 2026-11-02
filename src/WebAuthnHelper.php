@@ -42,7 +42,22 @@ class WebAuthnHelper implements WebAuthn
 
     const RS256 = -257; // Windows Hello support
 
+    const USER_VERIFICATION_REQUIRED = 'required';
+
+    const USER_VERIFICATION_PREFERRED = 'preferred';
+
+    const USER_VERIFICATION_DISCOURAGED = 'discouraged';
+
+    /** flag bits of authenticatorData */
+    private const FLAG_UP = 0x01;
+
+    private const FLAG_UV = 0x04;
+
+    private const FLAG_AT = 0x40;
+
     private string $appid;
+
+    private string $userVerification;
 
     /**
      * construct object on which to operate
@@ -51,13 +66,26 @@ class WebAuthnHelper implements WebAuthn
      *                         are using the key to log in to. If you have the URL (ie including the
      *                         https:// on the front) to hand, give that;
      *                         if it's not https, well what are you doing using this code?
+     * @param string $userVerification the WebAuthn userVerification requirement sent to the browser on both
+     *                         registration and authentication: 'required', 'preferred' or 'discouraged'.
+     *                         With 'required', register() and authenticate() also reject responses whose
+     *                         authenticator data does not have the user verified (UV) flag set.
      */
-    public function __construct(string $appid)
+    public function __construct(string $appid, string $userVerification = self::USER_VERIFICATION_DISCOURAGED)
     {
         $this->appid = $appid;
         if (str_starts_with($this->appid, 'https://')) {
             $this->appid = substr($this->appid, 8); /* drop the https:// */
         }
+
+        if (!in_array($userVerification, [
+            self::USER_VERIFICATION_REQUIRED,
+            self::USER_VERIFICATION_PREFERRED,
+            self::USER_VERIFICATION_DISCOURAGED,
+        ], true)) {
+            $this->oops("invalid userVerification '{$userVerification}': expected 'required', 'preferred' or 'discouraged'", 1);
+        }
+        $this->userVerification = $userVerification;
     }
 
     /**
@@ -102,7 +130,7 @@ class WebAuthnHelper implements WebAuthn
         }
 
         $result->authenticatorSelection->requireResidentKey = false;
-        $result->authenticatorSelection->userVerification = 'discouraged';
+        $result->authenticatorSelection->userVerification = $this->userVerification;
 
         $result->timeout = 60000;
         $result->excludeCredentials = []; // No excludeList
@@ -188,9 +216,11 @@ class WebAuthnHelper implements WebAuthn
             $this->oops('cannot decode key response (5)');
         }
 
-        if (($ao->flags & 0x41) !== 0x41) {
+        if (($ao->flags & (self::FLAG_UP | self::FLAG_AT)) !== (self::FLAG_UP | self::FLAG_AT)) {
             $this->oops('cannot decode key response (6)');
         } /* TUP and AT must be set */
+
+        $this->verifyUserVerified($ao->flags);
 
         $ao->attData = (object)[];
         $ao->attData->aaguid = substr($bs, 37, 16);
@@ -246,7 +276,7 @@ class WebAuthnHelper implements WebAuthn
         return new PrepareAuthenticatePublicKey(
             challenge: self::stringToArray($challengebytes),
             timeout: 60000,
-            userVerification: 'discouraged',
+            userVerification: $this->userVerification,
             extensions: new Extensions(
                 txAuthSimple: 'Execute order 66',
             ),
@@ -324,9 +354,11 @@ class WebAuthnHelper implements WebAuthn
         /* experience shows that at least one device (OnePlus 6T/Pie (Android phone)) doesn't set this,
         so this test would fail. This is not correct according to the spec, so  pragmatically it may
         have to be removed */
-        if (($ao->flags & 0x1) != 0x1) {
+        if (($ao->flags & self::FLAG_UP) !== self::FLAG_UP) {
             $this->oops('cannot decode key response (2c)');
-        } /* only TUP must be set */
+        } /* TUP must be set */
+
+        $this->verifyUserVerified($ao->flags);
 
         /* assemble signed data */
         $signeddata = $hashId . chr($ao->flags) . $ao->counter . hash('sha256', $clientdata, true);
@@ -353,6 +385,19 @@ class WebAuthnHelper implements WebAuthn
         $dInfo = json_decode($info);
         $rawId = $dInfo->rawId;
         return bin2hex(self::arrayToString($rawId));
+    }
+
+    /**
+     * when user verification is required, check that the authenticator verified the user (UV flag)
+     *
+     * Requesting userVerification 'required' only makes the browser ask the authenticator for it; a modified
+     * client can ignore the request, so the flag in the authenticator data is what the server has to check.
+     */
+    private function verifyUserVerified(int $flags): void
+    {
+        if ($this->userVerification === self::USER_VERIFICATION_REQUIRED && ($flags & self::FLAG_UV) !== self::FLAG_UV) {
+            $this->oops('user verification required but the authenticator did not verify the user');
+        }
     }
 
     /**
