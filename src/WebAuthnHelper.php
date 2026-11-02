@@ -286,9 +286,17 @@ class WebAuthnHelper implements WebAuthn
             $this->oops('no key with id ' . implode(',', $info->rawId));
         }
 
+        /* the checks below must use the client data the signature covers (clientDataJSONarray), not the
+           separately supplied decoded copy, which an attacker could swap for one with a fresh challenge */
+        if (!isset($info->response->clientDataJSONarray) || !is_array($info->response->clientDataJSONarray)) {
+            $this->oops('no clientDataJSONarray in info');
+        }
+        $clientdata = self::arrayToString($info->response->clientDataJSONarray);
+        $clientData = $this->verifyClientData(json_decode($clientdata), 'webauthn.get');
+
         /* cross-check challenge */
         $oc = rtrim(strtr(base64_encode(self::arrayToString($info->originalChallenge)), '+/', '-_'), '=');
-        if ($oc != $info->response->clientData->challenge) {
+        if (!hash_equals($oc, $clientData->challenge)) {
             $this->oops('challenge mismatch');
         }
 
@@ -296,18 +304,8 @@ class WebAuthnHelper implements WebAuthn
            implies $userwebauthn was not saved back to the user database after prepareForLogin. It
            would be better to produce an error here, but for the purposes of backward compatibility, it'll
            allow it, but with a replay vulnerability */
-        //log(print_r($key->challenge,1).' '.print_r($info->response->clientData->challenge,1));
-        if (isset($key->challenge) && $key->challenge != $info->response->clientData->challenge) {
+        if (isset($key->challenge) && !hash_equals((string)$key->challenge, $clientData->challenge)) {
             $this->oops('you cannot use the same login more than once');
-        }
-        /* cross check origin */
-        $origin = parse_url($info->response->clientData->origin);
-        if ($this->appid != $origin['host']) {
-            $this->oops("origin mismatch '{$info->response->clientData->origin}'");
-        }
-
-        if ($info->response->clientData->type != 'webauthn.get') {
-            $this->oops("type mismatch '{$info->response->clientData->type}'");
         }
 
         $bs = self::arrayToString($info->response->authenticatorData);
@@ -331,7 +329,6 @@ class WebAuthnHelper implements WebAuthn
         } /* only TUP must be set */
 
         /* assemble signed data */
-        $clientdata = self::arrayToString($info->response->clientDataJSONarray);
         $signeddata = $hashId . chr($ao->flags) . $ao->counter . hash('sha256', $clientdata, true);
 
         if (count($info->response->signature) < 70) {
