@@ -31,6 +31,7 @@ linter / フォーマッタの設定はない。`phpunit.xml.dist` に `failOnNo
 ### 押さえておくべきプロトコル上の挙動
 
 - `appid` から取り除かれるのは先頭の `https://` だけ。`authenticate()` ではこれを `clientData.origin` の **ホスト部分** とだけ比較し、`rpId` としても使う。そのため `http://` やポート、パスを含む `APP_URL` だと origin mismatch になる。テストでは `appId` を `localhost` に設定している（`tests/TestCase.php`）。
+- `register($info, $challenge)` は、発行した `PrepareChallengeForRegistration::$b64challenge` を必須で受け取り、`clientDataJSON` の `challenge` と `hash_equals` で比較する。`type`（`webauthn.create`）と origin のホスト部分も確認する。
 - `authenticate($info, $userwebauthn)` は、`webauthn_id`（hex）と `webauthn_key`（PEM）を持つ行オブジェクトを想定しており、任意で `challenge` を持てる（リプレイ対策。保存されていなければ確認はスキップされる）。
 - `$info` はフロントエンドが作る JSON 文字列で、バイト列は数値配列として入っている。その形は `examples/*.ts` が決めている。登録の `$info` は `rawId` / `response.attestationObject` / `response.clientDataJSON` を、認証の `$info` は `rawId` / `originalChallenge` / `response.{authenticatorData,clientData,clientDataJSONarray,signature}` を持つ。ペイロードの形を変えるときは、PHP 側と TS の examples の両方を更新する。
 - 受け付けるアテステーション形式は `none` と `packed`。`fido-u2f` などそれ以外は拒否する。

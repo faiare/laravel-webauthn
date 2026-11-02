@@ -14,7 +14,7 @@ interface WebAuthn
         string $username, string $userid, bool $crossPlatform
     ): PrepareChallengeForRegistration;
 
-    public function register(string $info): RegisterPublicKey;
+    public function register(string $info, string $challenge): RegisterPublicKey;
 
     public function prepareForAuthenticate(): PrepareAuthenticatePublicKey;
 

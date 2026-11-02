@@ -121,12 +121,17 @@ class WebAuthnHelper implements WebAuthn
      *
      * @param string $info supplied to the PHP script via a POST, constructed by the Javascript given below, ultimately
      *                        provided by the key
+     * @param string $challenge the b64challenge of the PrepareChallengeForRegistration issued for this registration,
+     *                        kept on the server (e.g. in the session) between the two requests
      * @return RegisterPublicKey modified to store in the user's webauthn field in your database
      *
      * @throws Exception
      */
-    public function register(string $info): RegisterPublicKey
+    public function register(string $info, string $challenge): RegisterPublicKey
     {
+        if ($challenge === '') {
+            $this->oops('challenge must not be empty', 1);
+        }
         $info = json_decode($info);
         if (empty($info)) {
             $this->oops('info is not properly JSON encoded', 1);
@@ -136,6 +141,11 @@ class WebAuthnHelper implements WebAuthn
         }
         if (empty($info->rawId)) {
             $this->oops('no rawId in info');
+        }
+
+        $clientData = $this->verifyClientData($info->response->clientDataJSON ?? null, 'webauthn.create');
+        if (!hash_equals($challenge, $clientData->challenge)) {
+            $this->oops('challenge mismatch');
         }
 
         /* check response from key and store as new identity. This is a hex string representing the raw CBOR
@@ -346,6 +356,32 @@ class WebAuthnHelper implements WebAuthn
         $dInfo = json_decode($info);
         $rawId = $dInfo->rawId;
         return bin2hex(self::arrayToString($rawId));
+    }
+
+    /**
+     * check the type and origin of the collected client data and that it carries a challenge
+     *
+     * @param mixed $clientData decoded clientDataJSON
+     * @param string $type expected type, webauthn.create or webauthn.get
+     * @return object the client data, with type, challenge and origin known to be strings
+     */
+    private function verifyClientData(mixed $clientData, string $type): object
+    {
+        if (!is_object($clientData)) {
+            $this->oops('no client data in info');
+        }
+        if (!isset($clientData->type) || $clientData->type !== $type) {
+            $this->oops('type mismatch');
+        }
+        if (!isset($clientData->challenge) || !is_string($clientData->challenge)) {
+            $this->oops('no challenge in client data');
+        }
+        $origin = isset($clientData->origin) && is_string($clientData->origin) ? parse_url($clientData->origin) : false;
+        if (!is_array($origin) || !isset($origin['host']) || $origin['host'] !== $this->appid) {
+            $this->oops('origin mismatch');
+        }
+
+        return $clientData;
     }
 
     /**

@@ -11,6 +11,11 @@ use Faiare\LaravelWebAuthn\WebAuthnHelper;
 
 class WebAuthnTest extends TestCase
 {
+    /** Registration payload recorded from a browser (origin http://localhost:8000). */
+    public const REGISTER_INFO = '{"rawId":[149,37,118,4,151,90,215,122,200,147,71,177,167,74,72,141],"id":"lSV2BJda13rIk0exp0pIjQ","type":"public-key","response":{"attestationObject":[163,99,102,109,116,100,110,111,110,101,103,97,116,116,83,116,109,116,160,104,97,117,116,104,68,97,116,97,88,148,73,150,13,229,136,14,140,104,116,52,23,15,100,118,96,91,143,228,174,185,162,134,50,199,153,92,243,186,131,29,151,99,93,0,0,0,0,186,218,85,102,167,170,64,31,189,150,69,97,154,85,18,13,0,16,149,37,118,4,151,90,215,122,200,147,71,177,167,74,72,141,165,1,2,3,38,32,1,33,88,32,45,153,31,31,0,220,130,97,81,187,139,116,236,46,130,204,140,179,215,110,179,198,67,59,67,103,188,208,117,203,252,35,34,88,32,6,203,159,57,132,216,96,14,8,27,141,35,81,4,115,45,162,132,191,161,89,226,11,140,127,227,12,29,72,61,218,129],"clientDataJSON":{"type":"webauthn.create","challenge":"O2xorCE-OAlp3KJYqYJXog","origin":"http://localhost:8000","crossOrigin":false}}}';
+
+    /** The challenge REGISTER_INFO was created for. */
+    public const REGISTER_CHALLENGE = 'O2xorCE-OAlp3KJYqYJXog';
 
     public function test_the_facade_instance()
     {
@@ -36,9 +41,7 @@ class WebAuthnTest extends TestCase
 
     public function test_register()
     {
-        $info = '{"rawId":[149,37,118,4,151,90,215,122,200,147,71,177,167,74,72,141],"id":"lSV2BJda13rIk0exp0pIjQ","type":"public-key","response":{"attestationObject":[163,99,102,109,116,100,110,111,110,101,103,97,116,116,83,116,109,116,160,104,97,117,116,104,68,97,116,97,88,148,73,150,13,229,136,14,140,104,116,52,23,15,100,118,96,91,143,228,174,185,162,134,50,199,153,92,243,186,131,29,151,99,93,0,0,0,0,186,218,85,102,167,170,64,31,189,150,69,97,154,85,18,13,0,16,149,37,118,4,151,90,215,122,200,147,71,177,167,74,72,141,165,1,2,3,38,32,1,33,88,32,45,153,31,31,0,220,130,97,81,187,139,116,236,46,130,204,140,179,215,110,179,198,67,59,67,103,188,208,117,203,252,35,34,88,32,6,203,159,57,132,216,96,14,8,27,141,35,81,4,115,45,162,132,191,161,89,226,11,140,127,227,12,29,72,61,218,129],"clientDataJSON":{"type":"webauthn.create","challenge":"O2xorCE-OAlp3KJYqYJXog","origin":"http://localhost:8000","crossOrigin":false}}}';
-
-        $result = WebAuthn::register($info);
+        $result = WebAuthn::register(self::REGISTER_INFO, self::REGISTER_CHALLENGE);
 
         $this->assertInstanceOf(RegisterPublicKey::class, $result);
     }

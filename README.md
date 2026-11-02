@@ -44,6 +44,9 @@ $publicKey = WebAuthn::prepareChallengeForRegistration(
     userid: '100',
     crossPlatform: true,
 );
+
+// keep the challenge on the server until the browser sends the credential back
+session()->put('webauthn_register_challenge', $publicKey->b64challenge);
 ```
 
 Frontend example is in the examples directory.
@@ -55,7 +58,11 @@ use Illuminate\Support\Facades\DB;
 // info must be a string
 $info = request()->input('credential');
 
-$publicKey = WebAuthn::register($info);
+// the challenge issued above; register() rejects a credential created for any other challenge
+$challenge = session()->pull('webauthn_register_challenge');
+abort_unless(is_string($challenge), 400);
+
+$publicKey = WebAuthn::register($info, $challenge);
 
 // store the public key, example...
 DB::table('web_authn_keys')->insert([
