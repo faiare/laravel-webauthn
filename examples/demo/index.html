@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>laravel-webauthn demo</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { max-width: 760px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    fieldset { margin-bottom: 1.5rem; border-radius: 6px; }
+    input { padding: .3rem .5rem; min-width: 14rem; }
+    button { padding: .3rem .8rem; cursor: pointer; }
+    pre { white-space: pre-wrap; word-break: break-all; background: rgba(127,127,127,.12); padding: .75rem; border-radius: 6px; font-size: .85rem; }
+    .ok { color: #1a7f37; } .ng { color: #cf222e; }
+    #warning { display: none; padding: .75rem; border: 1px solid #cf222e; border-radius: 6px; }
+    table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+    th, td { text-align: left; padding: .25rem .5rem; border-bottom: 1px solid rgba(127,127,127,.3); word-break: break-all; }
+  </style>
+</head>
+<body>
+  <h1>laravel-webauthn demo</h1>
+  <p id="warning"></p>
+  <p>App ID (RP ID): <code id="app-id">…</code></p>
+
+  <fieldset>
+    <legend>Register</legend>
+    <form id="register-form">
+      <input name="username" placeholder="username" required autocomplete="username">
+      <button>Register passkey</button>
+    </form>
+  </fieldset>
+
+  <fieldset>
+    <legend>Authenticate</legend>
+    <form id="authenticate-form">
+      <input name="username" placeholder="username (empty: discoverable)" autocomplete="username">
+      <button>Sign in with passkey</button>
+    </form>
+  </fieldset>
+
+  <h2>Result</h2>
+  <p id="status">-</p>
+  <pre id="detail"></pre>
+
+  <h2>Stored credentials</h2>
+  <p><small>File: <code id="store-file"></code></small> <button id="reset" type="button">Reset</button></p>
+  <table>
+    <thead><tr><th>username</th><th>webauthn_id</th><th>created_at</th></tr></thead>
+    <tbody id="credentials"></tbody>
+  </table>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -94,3 +94,21 @@ $webAuthnKey = DB::table('web_authn_keys')->where('webauthn_id', $webAuthnId)->f
 
 $success = WebAuthn::authenticate($info, $webAuthnKey);
 ```
+
+## Try it locally
+
+`examples/demo` runs the registration and authentication flow in the browser with PHP's built-in web server.
+It needs neither Laravel nor a database nor Docker: challenges are kept in the PHP session and public keys in a
+JSON file in the system temp directory.
+
+```bash
+composer install
+composer demo
+```
+
+Open http://localhost:8000 (`localhost`, not `127.0.0.1`: WebAuthn does not accept an IP address as the RP ID),
+register a passkey for a username, then sign in with it. Leave the username empty when signing in to let the
+browser offer any passkey for the site (this needs a discoverable credential). The demo uses `localhost` as the
+app ID; set `WEBAUTHN_DEMO_APP_ID` to change it.
+
+The demo is for trying the package out only. Do not use its storage or session handling in production.
