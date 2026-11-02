@@ -55,10 +55,10 @@ class WebAuthnRs256Test extends TestCase
         return array_values(unpack('C*', $s) ?: []);
     }
 
-    private function registerInfo(string $cose, string $credId): string
+    private function registerInfo(string $cose, string $credId, int $flags = 0x41): string
     {
         $authData = hash('sha256', self::APP_ID, true)
-            . chr(0x41)
+            . chr($flags)
             . pack('N', 0)
             . str_repeat("\x00", 16)
             . pack('n', strlen($credId))
@@ -270,5 +270,47 @@ class WebAuthnRs256Test extends TestCase
 
         $this->expectException(RuntimeException::class);
         WebAuthn::register($this->registerInfo($this->coseKey($n, null), random_bytes(16)));
+    }
+
+    public static function invalidRegistrationFlags(): array
+    {
+        return [
+            'no flags (0x00)' => [0x00],
+            'UP only (0x01)' => [0x01],
+            'AT only (0x40)' => [0x40],
+        ];
+    }
+
+    #[DataProvider('invalidRegistrationFlags')]
+    public function test_register_rejects_flags_missing_up_or_at(int $flags): void
+    {
+        [$n, $e] = $this->rsaParams($this->generateKey(2048));
+
+        try {
+            WebAuthn::register($this->registerInfo($this->coseKey($n, $e), random_bytes(16), $flags));
+            $this->fail('Expected RuntimeException was not thrown');
+        } catch (RuntimeException $ex) {
+            $this->assertSame('cannot decode key response (6)', $ex->getMessage());
+            $this->assertSame(0, $ex->getCode());
+        }
+    }
+
+    public static function validRegistrationFlags(): array
+    {
+        return [
+            'UP+AT (0x41)' => [0x41],
+            'UP+UV+AT (0x45)' => [0x45],
+        ];
+    }
+
+    #[DataProvider('validRegistrationFlags')]
+    public function test_register_accepts_flags_with_up_and_at(int $flags): void
+    {
+        [$n, $e] = $this->rsaParams($this->generateKey(2048));
+        $credId = random_bytes(16);
+
+        $result = WebAuthn::register($this->registerInfo($this->coseKey($n, $e), $credId, $flags));
+
+        $this->assertSame(bin2hex($credId), $result->id);
     }
 }

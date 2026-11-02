@@ -178,7 +178,7 @@ class WebAuthnHelper implements WebAuthn
             $this->oops('cannot decode key response (5)');
         }
 
-        if (!($ao->flags & 0x41)) {
+        if (($ao->flags & 0x41) !== 0x41) {
             $this->oops('cannot decode key response (6)');
         } /* TUP and AT must be set */
 
