@@ -38,6 +38,12 @@
       }
     }
   },
+  "scripts": {
+    "demo": [
+      "Composer\\Config::disableProcessTimeout",
+      "@php -S localhost:8000 -t examples/demo examples/demo/router.php"
+    ]
+  },
   "minimum-stability": "dev",
   "prefer-stable": true
 }

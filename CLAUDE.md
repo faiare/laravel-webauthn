@@ -13,6 +13,7 @@ composer install
 vendor/bin/phpunit                                   # 全テスト
 vendor/bin/phpunit --filter test_register            # 単一テスト
 vendor/bin/phpunit tests/Unit/WebAuthnTest.php       # 単一ファイル
+composer demo                                        # examples/demo を http://localhost:8000 で起動
 ```
 
 linter / フォーマッタの設定はない。`phpunit.xml.dist` に `failOnNotice` / `failOnWarning` が設定されているため、PHP の notice や deprecation の warning が出るとテストが失敗する。
@@ -38,8 +39,12 @@ linter / フォーマッタの設定はない。`phpunit.xml.dist` に `failOnNo
 - `register($info, $challenge)` は、発行した `PrepareChallengeForRegistration::$b64challenge` を必須で受け取り、`clientDataJSON` の `challenge` と `hash_equals` で比較する。`type`（`webauthn.create`）と origin のホスト部分も確認する。
 - `authenticate()` は challenge・origin・type を、署名対象の `clientDataJSONarray` を解析した値で確認する。フロントエンドが送る `response.clientData`（解析済みのコピー）は改ざんできるので使わない。
 - `authenticate($info, $userwebauthn)` は、`webauthn_id`（hex）と `webauthn_key`（PEM）を持つ行オブジェクトを想定しており、任意で `challenge` を持てる（リプレイ対策。保存されていなければ確認はスキップされる）。
-- `$info` はフロントエンドが作る JSON 文字列で、バイト列は数値配列として入っている。その形は `examples/*.ts` が決めている。登録の `$info` は `rawId` / `response.attestationObject` / `response.clientDataJSON` を、認証の `$info` は `rawId` / `originalChallenge` / `response.{authenticatorData,clientData,clientDataJSONarray,signature}` を持つ。ペイロードの形を変えるときは、PHP 側と TS の examples の両方を更新する。
+- `$info` はフロントエンドが作る JSON 文字列で、バイト列は数値配列として入っている。その形は `examples/*.ts` が決めている。登録の `$info` は `rawId` / `response.attestationObject` / `response.clientDataJSON` を、認証の `$info` は `rawId` / `originalChallenge` / `response.{authenticatorData,clientData,clientDataJSONarray,signature}` を持つ。ペイロードの形を変えるときは、PHP 側と TS の examples、`examples/demo/webauthn.js`（ビルドなしで動かすための TS examples の JS 版）をすべて更新する。
 - 受け付けるアテステーション形式は `none` と `packed`。`fido-u2f` などそれ以外は拒否する。
+
+## デモ
+
+`examples/demo` は Laravel・DB・Docker なしで PHP built-in server 上で登録と認証を試すためのもの。`router.php` が `WebAuthnHelper` を直接 `new` して API（`/api/*`）を提供し、challenge は PHP セッション、公開鍵は `sys_get_temp_dir()` の JSON ファイルに保存する。appId は `localhost` 固定（`WEBAUTHN_DEMO_APP_ID` で変更可）なので、`127.0.0.1` でアクセスすると origin mismatch になる。自動テストはない。
 
 ## テスト
 
