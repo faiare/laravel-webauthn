@@ -121,12 +121,17 @@ class WebAuthnHelper implements WebAuthn
      *
      * @param string $info supplied to the PHP script via a POST, constructed by the Javascript given below, ultimately
      *                        provided by the key
+     * @param string $challenge the b64challenge of the PrepareChallengeForRegistration issued for this registration,
+     *                        kept on the server (e.g. in the session) between the two requests
      * @return RegisterPublicKey modified to store in the user's webauthn field in your database
      *
      * @throws Exception
      */
-    public function register(string $info): RegisterPublicKey
+    public function register(string $info, string $challenge): RegisterPublicKey
     {
+        if ($challenge === '') {
+            $this->oops('challenge must not be empty', 1);
+        }
         $info = json_decode($info);
         if (empty($info)) {
             $this->oops('info is not properly JSON encoded', 1);
@@ -136,6 +141,11 @@ class WebAuthnHelper implements WebAuthn
         }
         if (empty($info->rawId)) {
             $this->oops('no rawId in info');
+        }
+
+        $clientData = $this->verifyClientData($info->response->clientDataJSON ?? null, 'webauthn.create');
+        if (!hash_equals($challenge, $clientData->challenge)) {
+            $this->oops('challenge mismatch');
         }
 
         /* check response from key and store as new identity. This is a hex string representing the raw CBOR
@@ -276,9 +286,17 @@ class WebAuthnHelper implements WebAuthn
             $this->oops('no key with id ' . implode(',', $info->rawId));
         }
 
+        /* the checks below must use the client data the signature covers (clientDataJSONarray), not the
+           separately supplied decoded copy, which an attacker could swap for one with a fresh challenge */
+        if (!isset($info->response->clientDataJSONarray) || !is_array($info->response->clientDataJSONarray)) {
+            $this->oops('no clientDataJSONarray in info');
+        }
+        $clientdata = self::arrayToString($info->response->clientDataJSONarray);
+        $clientData = $this->verifyClientData(json_decode($clientdata), 'webauthn.get');
+
         /* cross-check challenge */
         $oc = rtrim(strtr(base64_encode(self::arrayToString($info->originalChallenge)), '+/', '-_'), '=');
-        if ($oc != $info->response->clientData->challenge) {
+        if (!hash_equals($oc, $clientData->challenge)) {
             $this->oops('challenge mismatch');
         }
 
@@ -286,18 +304,8 @@ class WebAuthnHelper implements WebAuthn
            implies $userwebauthn was not saved back to the user database after prepareForLogin. It
            would be better to produce an error here, but for the purposes of backward compatibility, it'll
            allow it, but with a replay vulnerability */
-        //log(print_r($key->challenge,1).' '.print_r($info->response->clientData->challenge,1));
-        if (isset($key->challenge) && $key->challenge != $info->response->clientData->challenge) {
+        if (isset($key->challenge) && !hash_equals((string)$key->challenge, $clientData->challenge)) {
             $this->oops('you cannot use the same login more than once');
-        }
-        /* cross check origin */
-        $origin = parse_url($info->response->clientData->origin);
-        if ($this->appid != $origin['host']) {
-            $this->oops("origin mismatch '{$info->response->clientData->origin}'");
-        }
-
-        if ($info->response->clientData->type != 'webauthn.get') {
-            $this->oops("type mismatch '{$info->response->clientData->type}'");
         }
 
         $bs = self::arrayToString($info->response->authenticatorData);
@@ -321,7 +329,6 @@ class WebAuthnHelper implements WebAuthn
         } /* only TUP must be set */
 
         /* assemble signed data */
-        $clientdata = self::arrayToString($info->response->clientDataJSONarray);
         $signeddata = $hashId . chr($ao->flags) . $ao->counter . hash('sha256', $clientdata, true);
 
         if (count($info->response->signature) < 70) {
@@ -346,6 +353,32 @@ class WebAuthnHelper implements WebAuthn
         $dInfo = json_decode($info);
         $rawId = $dInfo->rawId;
         return bin2hex(self::arrayToString($rawId));
+    }
+
+    /**
+     * check the type and origin of the collected client data and that it carries a challenge
+     *
+     * @param mixed $clientData decoded clientDataJSON
+     * @param string $type expected type, webauthn.create or webauthn.get
+     * @return object the client data, with type, challenge and origin known to be strings
+     */
+    private function verifyClientData(mixed $clientData, string $type): object
+    {
+        if (!is_object($clientData)) {
+            $this->oops('no client data in info');
+        }
+        if (!isset($clientData->type) || $clientData->type !== $type) {
+            $this->oops('type mismatch');
+        }
+        if (!isset($clientData->challenge) || !is_string($clientData->challenge)) {
+            $this->oops('no challenge in client data');
+        }
+        $origin = isset($clientData->origin) && is_string($clientData->origin) ? parse_url($clientData->origin) : false;
+        if (!is_array($origin) || !isset($origin['host']) || $origin['host'] !== $this->appid) {
+            $this->oops('origin mismatch');
+        }
+
+        return $clientData;
     }
 
     /**

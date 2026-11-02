@@ -8,7 +8,7 @@ use Faiare\LaravelWebAuthn\Entities\RegisterPublicKey;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @method static RegisterPublicKey register(string $info)
+ * @method static RegisterPublicKey register(string $info, string $challenge)
  * @method static PrepareAuthenticatePublicKey prepareForAuthenticate()
  * @method static PrepareChallengeForRegistration prepareChallengeForRegistration(string $username, string $userid, bool $crossPlatform)
  * @method static bool authenticate(string $info, mixed $userwebauthn)

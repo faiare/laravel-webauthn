@@ -18,6 +18,7 @@ use RuntimeException;
 class WebAuthnRs256Test extends TestCase
 {
     private const APP_ID = 'localhost';
+    private const CHALLENGE = 'O2xorCE-OAlp3KJYqYJXog';
 
     // ---------------------------------------------------------------- helpers
 
@@ -91,7 +92,7 @@ class WebAuthnRs256Test extends TestCase
     {
         [$n, $e] = $this->rsaParams($key);
 
-        return WebAuthn::register($this->registerInfo($this->coseKey($n, $e), $credId));
+        return WebAuthn::register($this->registerInfo($this->coseKey($n, $e), $credId), self::CHALLENGE);
     }
 
     /** @return array{0: string, 1: object} [info JSON, user row] */
@@ -181,7 +182,7 @@ class WebAuthnRs256Test extends TestCase
         $n = "\x40" . random_bytes(254) . "\x01";
         $credId = random_bytes(16);
 
-        $result = WebAuthn::register($this->registerInfo($this->coseKey($n, "\x01\x00\x01"), $credId));
+        $result = WebAuthn::register($this->registerInfo($this->coseKey($n, "\x01\x00\x01"), $credId), self::CHALLENGE);
 
         $d = openssl_pkey_get_details(openssl_pkey_get_public($result->key));
         $this->assertSame(bin2hex($n), bin2hex($d['rsa']['n']));
@@ -203,7 +204,7 @@ class WebAuthnRs256Test extends TestCase
     {
         [$n] = $this->rsaParams($this->generateKey(2048));
 
-        $result = WebAuthn::register($this->registerInfo($this->coseKey($n, $e), random_bytes(16)));
+        $result = WebAuthn::register($this->registerInfo($this->coseKey($n, $e), random_bytes(16)), self::CHALLENGE);
 
         $d = openssl_pkey_get_details(openssl_pkey_get_public($result->key));
         $this->assertSame(bin2hex($n), bin2hex($d['rsa']['n']));
@@ -261,7 +262,7 @@ class WebAuthnRs256Test extends TestCase
     public function test_register_rs256_without_modulus_throws(): void
     {
         $this->expectException(RuntimeException::class);
-        WebAuthn::register($this->registerInfo($this->coseKey(null, "\x01\x00\x01"), random_bytes(16)));
+        WebAuthn::register($this->registerInfo($this->coseKey(null, "\x01\x00\x01"), random_bytes(16)), self::CHALLENGE);
     }
 
     public function test_register_rs256_without_exponent_throws(): void
@@ -269,7 +270,7 @@ class WebAuthnRs256Test extends TestCase
         [$n] = $this->rsaParams($this->generateKey(2048));
 
         $this->expectException(RuntimeException::class);
-        WebAuthn::register($this->registerInfo($this->coseKey($n, null), random_bytes(16)));
+        WebAuthn::register($this->registerInfo($this->coseKey($n, null), random_bytes(16)), self::CHALLENGE);
     }
 
     public static function invalidRegistrationFlags(): array
@@ -287,7 +288,7 @@ class WebAuthnRs256Test extends TestCase
         [$n, $e] = $this->rsaParams($this->generateKey(2048));
 
         try {
-            WebAuthn::register($this->registerInfo($this->coseKey($n, $e), random_bytes(16), $flags));
+            WebAuthn::register($this->registerInfo($this->coseKey($n, $e), random_bytes(16), $flags), self::CHALLENGE);
             $this->fail('Expected RuntimeException was not thrown');
         } catch (RuntimeException $ex) {
             $this->assertSame('cannot decode key response (6)', $ex->getMessage());
@@ -309,7 +310,7 @@ class WebAuthnRs256Test extends TestCase
         [$n, $e] = $this->rsaParams($this->generateKey(2048));
         $credId = random_bytes(16);
 
-        $result = WebAuthn::register($this->registerInfo($this->coseKey($n, $e), $credId, $flags));
+        $result = WebAuthn::register($this->registerInfo($this->coseKey($n, $e), $credId, $flags), self::CHALLENGE);
 
         $this->assertSame(bin2hex($credId), $result->id);
     }
