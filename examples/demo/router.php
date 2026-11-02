@@ -35,6 +35,7 @@ if (!str_starts_with($path, '/api/')) {
 }
 
 $appId = getenv('WEBAUTHN_DEMO_APP_ID') ?: 'localhost';
+$userVerification = getenv('WEBAUTHN_DEMO_USER_VERIFICATION') ?: WebAuthnHelper::USER_VERIFICATION_DISCOURAGED;
 $storeFile = sys_get_temp_dir() . '/faiare-laravel-webauthn-demo.json';
 
 session_start();
@@ -98,7 +99,7 @@ function requireString(array $input, string $key): string
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
-$webauthn = new WebAuthnHelper($appId);
+$webauthn = new WebAuthnHelper($appId, $userVerification);
 
 try {
     switch ("$method $path") {
@@ -106,6 +107,7 @@ try {
             $credentials = withStore($storeFile, fn (array &$c) => $c);
             respond(200, [
                 'appId' => $appId,
+                'userVerification' => $userVerification,
                 'storeFile' => $storeFile,
                 'credentials' => array_map(fn (array $c) => [
                     'username' => $c['username'],
