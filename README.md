@@ -22,8 +22,8 @@ In contrast, this library provides only a simple authentication Facade.
 
 ## Requirements
 
-- PHP 8.2 or higher
-- Laravel 10.0 or higher
+- PHP 8.3 or higher
+- Laravel 12.0 or higher
 - ext-openssl
 
 ## Installation
