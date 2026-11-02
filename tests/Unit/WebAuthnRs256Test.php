@@ -2,10 +2,10 @@
 
 namespace Faiare\LaravelWebAuthn\Tests\Unit;
 
-use CBOR\CBOREncoder;
-use CBOR\Types\CBORByteString;
+use Faiare\LaravelWebAuthn\Cbor\ByteString;
 use Faiare\LaravelWebAuthn\Entities\RegisterPublicKey;
 use Faiare\LaravelWebAuthn\Facades\WebAuthn;
+use Faiare\LaravelWebAuthn\Tests\Support\CborEncoder;
 use Faiare\LaravelWebAuthn\Tests\TestCase;
 use OpenSSLAsymmetricKey;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -13,7 +13,7 @@ use RuntimeException;
 
 /**
  * RS256 (COSE alg -257) registration / authentication tests.
- * Keys are generated at runtime; COSE and attestationObject are built with CBOREncoder.
+ * Keys are generated at runtime; COSE and attestationObject are built with CborEncoder.
  */
 class WebAuthnRs256Test extends TestCase
 {
@@ -41,13 +41,13 @@ class WebAuthnRs256Test extends TestCase
     {
         $map = [1 => 3, 3 => $alg];
         if ($n !== null) {
-            $map[-1] = new CBORByteString($n);
+            $map[-1] = new ByteString($n);
         }
         if ($e !== null) {
-            $map[-2] = new CBORByteString($e);
+            $map[-2] = new ByteString($e);
         }
 
-        return CBOREncoder::encode($map);
+        return CborEncoder::encode($map);
     }
 
     private function bytes(string $s): array
@@ -65,10 +65,10 @@ class WebAuthnRs256Test extends TestCase
             . $credId
             . $cose;
 
-        $ao = CBOREncoder::encode([
+        $ao = CborEncoder::encode([
             'fmt' => 'none',
             'attStmt' => [],
-            'authData' => new CBORByteString($authData),
+            'authData' => new ByteString($authData),
         ]);
 
         return json_encode([

@@ -2,9 +2,10 @@
 
 namespace Faiare\LaravelWebAuthn;
 
-use CBOR\CBOREncoder;
-use CBOR\Types\CBORByteString;
 use Exception;
+use Faiare\LaravelWebAuthn\Cbor\ByteString;
+use Faiare\LaravelWebAuthn\Cbor\CborDecoder;
+use Faiare\LaravelWebAuthn\Cbor\CborException;
 use Faiare\LaravelWebAuthn\Construct\WebAuthn;
 use Faiare\LaravelWebAuthn\Entities\Extensions;
 use Faiare\LaravelWebAuthn\Entities\PrepareChallengeForRegistration;
@@ -33,7 +34,6 @@ use RuntimeException;
  * Dependencies
  * ------------
  *
- * - You will need to include https://github.com/2tvenom/CBOREncode
  * - openssl that supports SHA256
  */
 class WebAuthnHelper implements WebAuthn
@@ -142,17 +142,25 @@ class WebAuthnHelper implements WebAuthn
         attestation object received from the key */
 
         $aos = self::arrayToString($info->response->attestationObject);
-        $ao = (object)(CBOREncoder::decode($aos));
-        if (empty($ao)) {
+        try {
+            $decoded = CborDecoder::decode($aos);
+        } catch (CborException $e) {
+            $this->oops('cannot decode key response (1): ' . $e->getMessage());
+        }
+        if (!is_array($decoded) || $decoded === []) {
             $this->oops('cannot decode key response (1)');
         }
-        if (empty($ao->fmt)) {
+        $ao = (object)$decoded;
+        if (empty($ao->fmt) || !is_string($ao->fmt)) {
             $this->oops('cannot decode key response (2)');
         }
-        if (empty($ao->authData)) {
+        if (!isset($ao->authData) || !$ao->authData instanceof ByteString) {
             $this->oops('cannot decode key response (3)');
         }
-        $bs = $ao->authData->get_byte_string();
+        $bs = $ao->authData->bytes;
+        if (strlen($bs) < 55) {
+            $this->oops('cannot decode key response (3)');
+        }
 
         if ($ao->fmt == 'fido-u2f') {
             $this->oops('cannot decode FIDO format responses, sorry');
@@ -485,9 +493,14 @@ class WebAuthnHelper implements WebAuthn
      */
     private function COSEECDHAtoPKCS($binary): ?string
     {
-        $cosePubKey = CBOREncoder::decode($binary);
+        try {
+            // the COSE key may be followed by extension data, so only the first item is decoded
+            $cosePubKey = CborDecoder::decodeFirst($binary);
+        } catch (CborException) {
+            return null;
+        }
 
-        if (!isset($cosePubKey[3] /* cose_alg */)) {
+        if (!is_array($cosePubKey) || !isset($cosePubKey[3] /* cose_alg */) || !is_int($cosePubKey[3])) {
             return null;
         }
 
@@ -502,7 +515,7 @@ class WebAuthnHelper implements WebAuthn
                     $this->oops('cannot decode key response (10)');
                 }
 
-                if ($cosePubKey[-1] != 1 /* cose_crv_P256 */) {
+                if ($cosePubKey[-1] !== 1 /* cose_crv_P256 */) {
                     $this->oops('cannot decode key response (14)');
                 }
 
@@ -522,12 +535,15 @@ class WebAuthnHelper implements WebAuthn
                     $this->oops('y coordinate for curve missing');
                 }
 
-                if ($cosePubKey[1] != 2 /* cose_kty_ec2 */) {
+                if ($cosePubKey[1] !== 2 /* cose_kty_ec2 */) {
                     $this->oops('cannot decode key response (12)');
                 }
 
-                $x = $cosePubKey[-2]->get_byte_string();
-                $y = $cosePubKey[-3]->get_byte_string();
+                if (!$cosePubKey[-2] instanceof ByteString || !$cosePubKey[-3] instanceof ByteString) {
+                    $this->oops('cannot decode key response (15)');
+                }
+                $x = $cosePubKey[-2]->bytes;
+                $y = $cosePubKey[-3]->bytes;
                 if (strlen($x) != 32 || strlen($y) != 32) {
                     $this->oops('cannot decode key response (15)');
                 }
@@ -542,13 +558,13 @@ class WebAuthnHelper implements WebAuthn
                 if (!isset($cosePubKey[-1])) {
                     $this->oops('RSA Modulus missing');
                 }
-                if (!$cosePubKey[-1] instanceof CBORByteString || !$cosePubKey[-2] instanceof CBORByteString) {
+                if (!$cosePubKey[-1] instanceof ByteString || !$cosePubKey[-2] instanceof ByteString) {
                     $this->oops('cannot decode key response (17)');
                 }
 
                 return $this->rsaPubkeyToPem(
-                    $cosePubKey[-1]->get_byte_string(),
-                    $cosePubKey[-2]->get_byte_string(),
+                    $cosePubKey[-1]->bytes,
+                    $cosePubKey[-2]->bytes,
                 );
             default:
                 $this->oops('cannot decode key response (13)');
