@@ -8,14 +8,7 @@ While the version is below 1.0.0, a minor version bump may contain breaking chan
 
 ## [Unreleased]
 
-### Added
-
-- `userVerification` config option (`WEB_AUTHN_USER_VERIFICATION`): `required`, `preferred` or `discouraged`
-  (default, the previous fixed value). It is sent to the browser on both registration and authentication.
-  With `required`, `register()` and `authenticate()` also reject responses whose authenticator data does not
-  have the user verified (UV) flag set. `WebAuthnHelper::__construct()` takes it as an optional second
-  argument and throws for any other value. If you published `config/webauthn.php`, add the key to it or
-  rely on the default.
+## [0.3.0] - 2026-11-02
 
 ### Breaking changes
 
@@ -24,6 +17,23 @@ While the version is below 1.0.0, a minor version bump may contain breaking chan
   Keep `PrepareChallengeForRegistration::$b64challenge` on the server (for example in the session)
   between `prepareChallengeForRegistration()` and `register()`, and pass it in. See the README.
 - Dropped support for Laravel 10 and 11 and for PHP 8.2.
+
+### Added
+
+- `userVerification` config option (`WEB_AUTHN_USER_VERIFICATION`): `required`, `preferred` or `discouraged`
+  (default, the previous fixed value). It is sent to the browser on both registration and authentication.
+  With `required`, `register()` and `authenticate()` also reject responses whose authenticator data does not
+  have the user verified (UV) flag set. `WebAuthnHelper::__construct()` takes it as an optional second
+  argument and throws for any other value. If you published `config/webauthn.php`, add the key to it or
+  rely on the default.
+- Laravel 13 support.
+
+### Changed
+
+- Replaced `2tvenom/cborencode` with a built-in CBOR decoder that handles only what WebAuthn needs.
+  It rejects indefinite lengths, tags, floats, oversized lengths and deep nesting. Decoded
+  attestation and COSE key fields are now type-checked.
+- Removed `phpseclib/phpseclib`. The RS256 public key is now encoded natively.
 
 ### Security
 
@@ -37,17 +47,6 @@ While the version is below 1.0.0, a minor version bump may contain breaking chan
 - `register()` now requires both the user presence (UP) and attested credential data (AT) flags.
   Previously either flag alone was accepted.
 - Challenges are compared in constant time (`hash_equals`).
-
-### Added
-
-- Laravel 13 support.
-
-### Changed
-
-- Replaced `2tvenom/cborencode` with a built-in CBOR decoder that handles only what WebAuthn needs.
-  It rejects indefinite lengths, tags, floats, oversized lengths and deep nesting. Decoded
-  attestation and COSE key fields are now type-checked.
-- Removed `phpseclib/phpseclib`. The RS256 public key is now encoded natively.
 
 ## [0.2.0] - 2026-03-02
 
@@ -64,6 +63,7 @@ While the version is below 1.0.0, a minor version bump may contain breaking chan
   and authentication (`prepareForAuthenticate()`, `authenticate()`, `parseWebAuthnId()`) through the
   `WebAuthn` facade, for Laravel 10 and 11 on PHP 8.2 and 8.3.
 
-[Unreleased]: https://github.com/faiare/laravel-webauthn/compare/0.2.0...HEAD
+[Unreleased]: https://github.com/faiare/laravel-webauthn/compare/0.3.0...HEAD
+[0.3.0]: https://github.com/faiare/laravel-webauthn/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/faiare/laravel-webauthn/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/faiare/laravel-webauthn/releases/tag/0.1.0
