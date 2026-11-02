@@ -25,7 +25,7 @@ linter / フォーマッタの設定はない。`phpunit.xml.dist` に `failOnNo
 
 - `WebAuthnServiceProvider` は `config/webauthn.php` をマージし、`webauthn` に `WebAuthnHelper` をバインドする（`appId` を渡す。`WEB_AUTHN_APP_ID` が未設定なら `APP_URL`）。設定ファイルは `faiare-webauthn-config` タグで publish できる。provider と `WebAuthn` facade は `composer.json` の `extra.laravel` で自動検出される。
 - `Construct\WebAuthn` が公開インターフェース。`Facades\WebAuthn` の `@method` docblock はこれと一致させておく必要がある。
-- `WebAuthnHelper` がすべてのプロトコル処理を持つ: CBOR デコード（`2tvenom/cborencode`）、COSE 鍵から PEM への変換（ES256・RS256 とも SubjectPublicKeyInfo の DER を手組みする）、openssl による署名検証。エラーは `oops()` 経由で `RuntimeException` として送出される（code 0 = 検証失敗、1 = 呼び出し側の誤り）。`authenticate()` も失敗時は `false` を返すのではなく、多くの場合例外を投げる。
+- `WebAuthnHelper` がすべてのプロトコル処理を持つ: CBOR デコード（自前の `Cbor\CborDecoder`。WebAuthn に必要な型だけを扱い、不定長・タグ・浮動小数点は拒否する）、COSE 鍵から PEM への変換（ES256・RS256 とも SubjectPublicKeyInfo の DER を手組みする）、openssl による署名検証。エラーは `oops()` 経由で `RuntimeException` として送出される（code 0 = 検証失敗、1 = 呼び出し側の誤り）。`authenticate()` も失敗時は `false` を返すのではなく、多くの場合例外を投げる。
 - `Entities\*` は readonly な値オブジェクト。`Prepare*` はブラウザに返す challenge のペイロード（`JsonSerializable`）。`register()` が返す `RegisterPublicKey` のプロパティは `id`（credential ID の hex）と `key`（PEM）。
 
 ### 押さえておくべきプロトコル上の挙動
